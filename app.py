@@ -6,13 +6,13 @@ from ai_processor import analyze_receipt
 # Configure mobile-friendly centered app page layout
 st.set_page_config(page_title="AI Receipt Auditor", page_icon="📱", layout="centered")
 
-# Initialize relational database table
+# Initialize database table
 create_table()
 
 st.title("📱 AI Personal Finance Auditor")
 st.write("Snap a photo of any printed receipt or handwritten shop chit to log it instantly.")
 
-# --- SECTION 1: MOBILE FILE UPLOADER / CAMERA Capture INTERFACE ---
+# --- SECTION 1: SCANNING CAPTURE INTERFACE ---
 st.subheader("📸 Scan New Receipt")
 uploaded_file = st.file_uploader(
     "Choose an image file or use your phone camera to snap a receipt", 
@@ -28,14 +28,21 @@ if uploaded_file is not None:
             # Route uploaded image data matrix directly into Gemini processor module
             extracted_data = analyze_receipt(uploaded_file)
             
+            try:
+                # Safely convert extracted amount to a clear float value
+                raw_amount = extracted_data.get("amount", 0.0)
+                amount_value = float(raw_amount) if raw_amount else 0.0
+            except ValueError:
+                amount_value = 0.0
+                
             # Commit clean structured keys cleanly into SQLite local database box
             insert_expense(
                 store_name=extracted_data.get("store_name", "Local Vendor"),
-                amount=float(extracted_data.get("amount", 0.0)),
+                amount=amount_value,
                 category=extracted_data.get("category", "Other"),
                 date=extracted_data.get("date", "2026-08-20")
             )
-            st.success(f"Logged ₹{extracted_data.get('amount')} spent at {extracted_data.get('store_name')}!")
+            st.success(f"Logged ₹{amount_value} spent at {extracted_data.get('store_name')}!")
             # Trigger clean view update refresh cycle
             st.rerun()
 
@@ -48,22 +55,32 @@ if expenses_data:
     # Parse transaction arrays directly into a structured Pandas DataFrame 
     df = pd.DataFrame(expenses_data, columns=["Store", "Amount (₹)", "Category", "Date"])
     
-    total_spent = df["Amount (₹)"].sum()
+    # FILTER OUT 0 amounts from analytics calculations to completely protect progress bars from crashing
+    analytics_df = df[df["Amount (₹)"] > 0]
     
-    # Render visual layout metric card 
-    st.metric(label="💰 Total Monitored Expenses This Month", value=f"₹{total_spent:,.2f}")
-    
-    # Generate contextual categorized breakdown meters
-    st.subheader("📊 Spending Breakdown by Category")
-    category_totals = df.groupby("Category")["Amount (₹)"].sum()
-    for cat, amt in category_totals.items():
-        percentage = amt / total_spent
-        st.write(f"**{cat}**: ₹{amt:,.2f} ({percentage*100:.1f}%)")
-        st.progress(float(percentage))
+    if not analytics_df.empty:
+        total_spent = analytics_df["Amount (₹)"].sum()
+        
+        # Render visual layout metric card 
+        st.metric(label="💰 Total Monitored Expenses This Month", value=f"₹{total_spent:,.2f}")
+        
+        # Generate contextual categorized breakdown meters
+        st.subheader("📊 Spending Breakdown by Category")
+        category_totals = analytics_df.groupby("Category")["Amount (₹)"].sum()
+        for cat, amt in category_totals.items():
+            percentage = amt / total_spent
+            st.write(f"**{cat}**: ₹{amt:,.2f} ({percentage*100:.1f}%)")
+            
+            # Constrain progress bar value strictly between a safe 0.0 and 1.0 boundary
+            safe_progress = max(0.0, min(float(percentage), 1.0))
+            st.progress(safe_progress)
+    else:
+        st.metric(label="💰 Total Monitored Expenses This Month", value="₹0.00")
+        st.info("No valid expenses found yet to display category charts.")
         
     st.markdown("---")
     
-    # Display clear interactive data historical spreadsheet
+    # Display clear interactive data historical spreadsheet (shows all logs, even the errors)
     st.subheader("📋 Expense History Logs")
     st.dataframe(df, use_container_width=True, hide_index=True)
 else:
