@@ -21,8 +21,7 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
     # Preview image directly on mobile interface
-   st.image(uploaded_file, caption="Uploaded Receipt Preview")
-
+    st.image(uploaded_file, caption="Uploaded Receipt Preview")
     
     if st.button("🚀 Process & Audit with AI", use_container_width=True):
         with st.spinner("AI is analyzing text and auditing spending values..."):
