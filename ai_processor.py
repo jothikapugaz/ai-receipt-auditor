@@ -1,60 +1,57 @@
 import os
 import json
-import base64
-from openai import OpenAI
+import google.generativeai as genai
 
 def analyze_receipt(uploaded_file):
     """
-    Accepts file bytes from Streamlit uploader, encodes to base64,
-    and sends to OpenAI Vision API with strict fallback rules.
+    Sends receipt image bytes to Google Gemini 1.5 Flash 
+    using the stable legacy library engine framework.
     """
-    # Check for API key; if missing, return smart mock data for testing
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key or api_key == "mock_key":
+    api_key = os.environ.get("GEMINI_API_KEY")
+    
+    if not api_key:
         return {
-            "store_name": "Local Vendor (Mock)",
+            "store_name": "Local Vendor (Simulation Mode)",
             "amount": 250.00,
             "category": "Food & Groceries",
             "date": "2026-08-20"
         }
 
-    client = OpenAI(api_key=api_key)
-    
-    # Encode uploaded image bytes to base64 string
-    base64_image = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
-
-    prompt = (
-        "Analyze this receipt image. Extract information into a strict JSON format with these exact keys: "
-        "'store_name', 'amount', 'category', 'date'. Do not include markdown formatting or extra text.\n"
-        "Follow these strict localized fallback rules:\n"
-        "1. If it is a handwritten chit or informal receipt, look for mathematical totals and extract that number into 'amount'.\n"
-        "2. If the store name or letterhead is missing entirely, set 'store_name' to 'Local Vendor'.\n"
-        "3. If the date is missing or illegible, set 'date' to '2026-08-20' (current date)."
-    )
-
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
-                        }
-                    ]
-                }
-            ],
-            temperature=0.0
+        # Initialize the stable configurations path
+        genai.configure(api_key=api_key)
+        
+        # Load the multimodal model matrix
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Format raw image file byte streams directly for translation
+        image_data = uploaded_file.getvalue()
+        image_parts = [
+            {
+                "mime_type": uploaded_file.type,
+                "data": image_data
+            }
+        ]
+        
+        prompt = (
+            "Analyze this receipt image. Extract details into a clean JSON structure with these exact keys: "
+            "'store_name', 'amount', 'category', 'date'. Output raw JSON text only, no markdown wrappers.\n"
+            "Fallback Rules:\n"
+            "1. For handwritten chits or informal scribbles, extract the calculated text total into 'amount'.\n"
+            "2. If store branding is absent, make store_name 'Local Vendor'.\n"
+            "3. If the date layout is invisible, default the date string to '2026-08-20'."
         )
-        # Parse the JSON string from the response
-        result_json = json.loads(response.choices[0].message.content)
-        return result_json
+        
+        # Generate model calculations
+        response = model.generate_content([prompt, image_parts[0]])
+        
+        # Clean up any accidental markdown backticks returned by the engine string
+        clean_text = response.text.replace("```json", "").replace("```", "").strip()
+        
+        return json.loads(clean_text)
+        
     except Exception as e:
-        print(f"Error processing AI request: {e}")
+        print(f"Systemic parsing exception captured: {e}")
         return {
             "store_name": "Error Processing",
             "amount": 0.0,
