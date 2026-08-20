@@ -3,16 +3,16 @@ import pandas as pd
 from database import create_table, insert_expense, get_expenses
 from ai_processor import analyze_receipt
 
-# Force mobile-friendly wide layout layout and configure page app
+# Configure mobile-friendly centered app page layout
 st.set_page_config(page_title="AI Receipt Auditor", page_icon="📱", layout="centered")
 
-# Initialize database table
+# Initialize relational database table
 create_table()
 
 st.title("📱 AI Personal Finance Auditor")
 st.write("Snap a photo of any printed receipt or handwritten shop chit to log it instantly.")
 
-# --- SECTION 1: MOBILE FILE UPLOADER / CAMERA INTERFACE ---
+# --- SECTION 1: MOBILE FILE UPLOADER / CAMERA Capture INTERFACE ---
 st.subheader("📸 Scan New Receipt")
 uploaded_file = st.file_uploader(
     "Choose an image file or use your phone camera to snap a receipt", 
@@ -20,40 +20,40 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file is not None:
-    # Preview image directly on mobile interface
+    # Render preview image instantly on phone screen
     st.image(uploaded_file, caption="Uploaded Receipt Preview")
     
     if st.button("🚀 Process & Audit with AI", use_container_width=True):
-        with st.spinner("AI is analyzing text and auditing spending values..."):
-            # Send file directly to our processing brain
+        with st.spinner("Gemini AI is reading text and auditing transaction values..."):
+            # Route uploaded image data matrix directly into Gemini processor module
             extracted_data = analyze_receipt(uploaded_file)
             
-            # Save the clean extracted fields to our SQLite database
+            # Commit clean structured keys cleanly into SQLite local database box
             insert_expense(
                 store_name=extracted_data.get("store_name", "Local Vendor"),
                 amount=float(extracted_data.get("amount", 0.0)),
                 category=extracted_data.get("category", "Other"),
                 date=extracted_data.get("date", "2026-08-20")
             )
-            st.success(f"Successfully logged ₹{extracted_data.get('amount')} spent at {extracted_data.get('store_name')}!")
-            # Trigger app rerun to show updated data records
+            st.success(f"Logged ₹{extracted_data.get('amount')} spent at {extracted_data.get('store_name')}!")
+            # Trigger clean view update refresh cycle
             st.rerun()
 
 st.markdown("---")
 
-# --- SECTION 2: METRICS & VISUAL DATA RECORDS ---
+# --- SECTION 2: ANALYTICS METRICS & HISTORY LOGS ---
 expenses_data = get_expenses()
 
 if expenses_data:
-    # Convert local list data into a Pandas DataFrame for analytics computing
+    # Parse transaction arrays directly into a structured Pandas DataFrame 
     df = pd.DataFrame(expenses_data, columns=["Store", "Amount (₹)", "Category", "Date"])
     
     total_spent = df["Amount (₹)"].sum()
     
-    # Large UI Summary Block 
+    # Render visual layout metric card 
     st.metric(label="💰 Total Monitored Expenses This Month", value=f"₹{total_spent:,.2f}")
     
-    # Categorized Progress Breakdown
+    # Generate contextual categorized breakdown meters
     st.subheader("📊 Spending Breakdown by Category")
     category_totals = df.groupby("Category")["Amount (₹)"].sum()
     for cat, amt in category_totals.items():
@@ -63,7 +63,7 @@ if expenses_data:
         
     st.markdown("---")
     
-    # History logs display
+    # Display clear interactive data historical spreadsheet
     st.subheader("📋 Expense History Logs")
     st.dataframe(df, use_container_width=True, hide_index=True)
 else:
