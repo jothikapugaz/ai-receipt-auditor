@@ -18,14 +18,14 @@ def analyze_receipt(uploaded_file):
         }
 
     try:
-        # Initialize the stable configurations path
+        # Initialize the stable configuration path
         genai.configure(api_key=api_key)
         
         # Load the multimodal model matrix
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Format raw image file byte streams directly for translation
-        image_data = uploaded_file.getvalue()
+        # CORRECTLY format file byte streams for Gemini vision engine
+        image_data = uploaded_file.read()
         image_parts = [
             {
                 "mime_type": uploaded_file.type,
